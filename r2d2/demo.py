@@ -46,7 +46,7 @@ signal.signal(signal.SIGINT, handle_int)
 
 while not mission_completed:
     if not awake:
-        if mic.detect():
+        if mic.detect('r2d2'):
             spi.write('wakeup\n')
             awake = True
             player.play(hi)
