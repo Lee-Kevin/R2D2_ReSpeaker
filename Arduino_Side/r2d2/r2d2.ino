@@ -27,6 +27,8 @@ static float mx_centre = 0;
 static float my_centre = 0;
 static float mz_centre = 0;
 float Mxyz[3];
+float Axyz[3];
+float last_Ax0;
 float heading;
 float last_heading;
 Servo myservo;  // create servo object to control a servo
@@ -96,15 +98,18 @@ void setup() {
 
 void loop() {
   static uint32_t last_time = 0;
+  static uint32_t last_time1 = 0;
   getCompassDate_calibrated(); // compass data has been calibrated here
   getHeading();               //before we use this function we should run 'getCompassDate_calibrated()' frist, so that we can get calibrated data ,then we can get correct angle .
-  if (abs(heading - last_heading) >= 10) {
+  getAccel_Data();
+  if ((abs(heading - last_heading) >= 1) || abs(Axyz[0] - last_Ax0) > 0.08) {
       ShakeFlag = 1;
       last_heading = heading;
+      last_Ax0 = Axyz[0];
   }
-   uint32_t current = millis();
+   uint32_t current1 = millis();
   
-   if ((ShakeFlag == 1) && (uint32_t)(current - last_time) > 5000) {
+   if ((ShakeFlag == 1) && (uint32_t)(current1 - last_time1) > 5000) {
 
         Serial.print("----Heading---------");
         Serial.println(heading);
@@ -115,27 +120,30 @@ void loop() {
         respeaker.exec(voicefile[index]);
         shakeHead();
         
-        ShakeFlag = 0;
-        last_time = current;
-
+        last_time1 = current1;
     }
-        
-
+    ShakeFlag = 0;
+    if(pixels_state == 1) {
+        pixels_state = -1;
+        shakeHead();
+    } else if (pixels_state == 2) {
+        pixels_state = -1;
+        respeaker.exec(voicefile[5]);
+    }
 }
 
 
 void shakeHead() {
   myservo.attach(SERVO_PIN);
+  for (pos = 180; pos >= 90; pos -= 1) { // goes from 180 degrees to 0 degrees
+    myservo.write(pos);              // tell servo to go to position in variable 'pos'
+                  // waits 15ms for the servo to reach the position
+  }
+  delay(800);  
   for (pos = 90; pos <= 180; pos += 1) { // goes from 0 degrees to 180 degrees
     // in steps of 1 degree
     myservo.write(pos);              // tell servo to go to position in variable 'pos'
                 // waits 15ms for the servo to reach the position
-  }
-  delay(800);
-
-  for (pos = 180; pos >= 90; pos -= 1) { // goes from 180 degrees to 0 degrees
-    myservo.write(pos);              // tell servo to go to position in variable 'pos'
-                  // waits 15ms for the servo to reach the position
   }
   delay(800);
   myservo.detach();
@@ -169,3 +177,12 @@ void getCompassDate_calibrated ()
     Mxyz[1] = Mxyz[1] - my_centre;
     Mxyz[2] = Mxyz[2] - mz_centre;
 }
+
+void getAccel_Data(void)
+{
+    accelgyro.getMotion9(&ax, &ay, &az, &gx, &gy, &gz, &mx, &my, &mz);
+    Axyz[0] = (double) ax / 16384;
+    // Axyz[1] = (double) ay / 16384;
+    // Axyz[2] = (double) az / 16384;
+}
+
